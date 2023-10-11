@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart' as ffi;
-import 'package:libusb/libusb64.dart';
+import 'package:libusb/libusb.dart';
 import 'package:quick_usb/src/common.dart';
 
 import 'quick_usb_platform_interface.dart';
@@ -25,8 +25,11 @@ class QuickUsbMacos extends _QuickUsbDesktop {
 
 class QuickUsbLinux extends _QuickUsbDesktop {
   QuickUsbLinux() {
-    _libusb = Libusb(DynamicLibrary.open(
-        '${File(Platform.resolvedExecutable).parent.path}/lib/libusb-1.0.23.so'));
+    if (Platform.version.contains('arm64')) {
+      _libusb = Libusb(DynamicLibrary.open('libusb-1.0.23.dylib'));
+    } else {
+      _libusb = Libusb(DynamicLibrary.open('libusb-1.0.0.dylib'));
+    }
   }
 }
 
@@ -83,7 +86,8 @@ class _QuickUsbDesktop extends QuickUsbPlatform {
   }
 
   @override
-  Future<List<UsbDeviceDescription>> getDevicesWithDescription({bool requestPermission = true}) async {
+  Future<List<UsbDeviceDescription>> getDevicesWithDescription(
+      {bool requestPermission = true}) async {
     var devices = await getDeviceList();
     var result = <UsbDeviceDescription>[];
     for (var device in devices) {
@@ -93,7 +97,8 @@ class _QuickUsbDesktop extends QuickUsbPlatform {
   }
 
   @override
-  Future<UsbDeviceDescription> getDeviceDescription(UsbDevice usbDevice, {bool requestPermission = true}) async {
+  Future<UsbDeviceDescription> getDeviceDescription(UsbDevice usbDevice,
+      {bool requestPermission = true}) async {
     String? manufacturer;
     String? product;
     String? serialNumber;
@@ -197,7 +202,7 @@ class _QuickUsbDesktop extends QuickUsbPlatform {
         id: configDescPtr.ref.bConfigurationValue,
         index: configDescPtr.ref.iConfiguration,
         interfaces: _iterateInterface(
-                configDescPtr.ref.interface_1, configDescPtr.ref.bNumInterfaces)
+                configDescPtr.ref.interface1, configDescPtr.ref.bNumInterfaces)
             .toList(),
       );
       _libusb.libusb_free_config_descriptor(configDescPtr);
